@@ -1,1 +1,53 @@
 
+# .github/workflows/deploy-to-netlify.yml
+# 在你的 GitHub repository 根目錄創建此文件
+
+name: 部署到 Netlify
+
+on:
+  push:
+    branches: [ main, master ]  # 當推送到 main 或 master 分支時觸發
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 檢出代碼
+    - name: 檢出代碼
+      uses: actions/checkout@v3
+      
+    # 設定 Node.js
+    - name: 設定 Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    # 安裝依賴
+    - name: 安裝依賴
+      run: |
+        npm ci --legacy-peer-deps
+        
+    # 建構 Web 版本
+    - name: 建構應用程式
+      run: |
+        npx expo export:web
+        
+    # 部署到 Netlify
+    - name: 部署到 Netlify
+      uses: nwtgck/actions-netlify@v2.0
+      with:
+        publish-dir: './web-build'
+        production-branch: main
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "部署來自 GitHub Actions - ${{ github.event.head_commit.message }}"
+        enable-pull-request-comment: false
+        enable-commit-comment: true
+        overwrites-pull-request-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      timeout-minutes: 1

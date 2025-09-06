@@ -17,8 +17,9 @@ interface TranslationJob {
   status: 'uploading' | 'translating' | 'completed' | 'error';
   progress: number;
   uploadTime: Date;
-  pdfBlob?: Blob;
+  fileBlob?: Blob;
   translatedFileName?: string;
+  errorMessage?: string;
 }
 
 export default function UploadScreen() {
@@ -51,6 +52,7 @@ export default function UploadScreen() {
   };
 
   const processFile = async (file: File) => {
+    // 文件驗證
     if (file.type !== 'application/pdf') {
       Alert.alert('錯誤', '請選擇PDF格式的文件');
       return;
@@ -72,7 +74,7 @@ export default function UploadScreen() {
 
     setJobs(prev => [newJob, ...prev]);
 
-    // Simulate upload and translation process
+    // 開始翻譯處理
     await simulateTranslation(jobId);
   };
 
@@ -83,71 +85,124 @@ export default function UploadScreen() {
       ));
     };
 
-    // Simulate upload progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      updateJob({ progress: i });
-    }
-
-    updateJob({ status: 'translating', progress: 0 });
-
-    // Simulate translation progress
-    for (let i = 0; i <= 100; i += 5) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      updateJob({ progress: i });
-    }
-
     try {
+      // 模擬上傳進度
+      for (let i = 0; i <= 100; i += 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        updateJob({ progress: i });
+      }
+
+      updateJob({ status: 'translating', progress: 0 });
+
+      // 模擬翻譯進度
+      for (let i = 0; i <= 100; i += 5) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        updateJob({ progress: i });
+      }
+
       // 獲取當前任務信息
       const currentJob = jobs.find(job => job.id === jobId);
-      if (!currentJob) return;
+      if (!currentJob) {
+        throw new Error('找不到翻譯任務');
+      }
+      
+      console.log('開始翻譯處理...', currentJob.fileName);
       
       // 生成翻譯內容
       const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
       
-      // 生成PDF
-      const pdfBlob = await PDFGenerator.createTranslatedPDF(
+      // 生成文件
+      const fileBlob = await PDFGenerator.createTranslatedPDF(
         currentJob.fileName,
         translatedContent
       );
       
-      const translatedFileName = `translated_${currentJob.fileName}`;
+      // 驗證生成的文件
+      const isValid = await PDFGenerator.validatePDF(fileBlob);
+      if (!isValid) {
+        throw new Error('生成的文件格式無效');
+      }
       
-      // Complete the job
+      const translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
+      
+      // 完成任務
       updateJob({ 
         status: 'completed', 
         progress: 100,
-        pdfBlob: pdfBlob,
+        fileBlob: fileBlob,
         translatedFileName: translatedFileName
       });
+      
+      Alert.alert('翻譯完成', `${currentJob.fileName} 已成功翻譯完成！`);
+      
     } catch (error) {
-      console.error('Translation failed:', error);
+      console.error('翻譯失敗:', error);
       updateJob({ 
         status: 'error', 
-        progress: 0 
+        progress: 0,
+        errorMessage: error.message || '翻譯過程中發生未知錯誤'
       });
-      Alert.alert('翻譯失敗', '處理文件時發生錯誤，請重試。');
+      Alert.alert('翻譯失敗', error.message || '處理文件時發生錯誤，請重試。');
     }
   };
 
-  const handleDownload = (job: TranslationJob) => {
-    if (Platform.OS === 'web' && job.pdfBlob && job.translatedFileName) {
-      // 創建實際的下載連結
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(job.pdfBlob);
-      link.href = url;
-      link.download = job.translatedFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // 清理URL對象
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      
-      Alert.alert('下載完成', `${job.translatedFileName} 已下載到您的電腦`);
-    } else {
+  const handleDownload = async (job: TranslationJob) => {
+    if (Platform.OS !== 'web' || !job.fileBlob || !job.translatedFileName) {
       Alert.alert('下載失敗', '文件尚未準備好或瀏覽器不支持下載功能');
+      return;
     }
+
+    try {
+      console.log('開始下載...', job.translatedFileName);
+      const success = await PDFGenerator.downloadPDF(job.fileBlob, job.translatedFileName);
+      
+      if (success) {
+        Alert.alert('下載完成', `${job.translatedFileName} 已下載到您的電腦\n\n注意：文件格式為HTML，可用瀏覽器打開查看，或使用瀏覽器的打印功能另存為PDF。`);
+      } else {
+        Alert.alert('下載失敗', '文件可能已損壞，請重新翻譯');
+      }
+    } catch (error) {
+      Alert.alert('下載錯誤', `下載失敗：${error.message}`);
+    }
+  };
+
+  const handleRetry = (job: TranslationJob) => {
+    Alert.alert(
+      '重新翻譯',
+      `確定要重新翻譯 "${job.fileName}" 嗎？`,
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '重試', onPress: () => {
+          // 重置任務狀態
+          setJobs(prev => prev.map(j => 
+            j.id === job.id 
+              ? { ...j, status: 'uploading', progress: 0, errorMessage: undefined }
+              : j
+          ));
+          // 重新開始翻譯
+          simulateTranslation(job.id);
+        }}
+      ]
+    );
+  };
+
+  const handleTestGeneration = () => {
+    Alert.alert(
+      '執行測試',
+      '是否要在控制台執行文件生成測試？',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '執行', onPress: () => {
+          console.log('=== 開始執行測試 ===');
+          import('../../utils/pdfGenerator').then(({ PDFDebugger }) => {
+            PDFDebugger.testBasicPDFGeneration();
+            PDFDebugger.checkEnvironmentCompatibility();
+          }).catch(error => {
+            console.error('導入測試工具失敗:', error);
+          });
+        }}
+      ]
+    );
   };
 
   const getStatusIcon = (status: TranslationJob['status']) => {
@@ -175,26 +230,6 @@ export default function UploadScreen() {
     }
   };
 
-  const handleDragOver = (e: any) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: any) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: any) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      processFile(files[0]);
-    }
-  };
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -202,6 +237,14 @@ export default function UploadScreen() {
         <Text style={styles.subtitle}>
           上傳PDF文件，自動翻譯成中文並保持原有格式
         </Text>
+        
+        {/* 添加測試按鈕 */}
+        <TouchableOpacity 
+          style={styles.testButton}
+          onPress={handleTestGeneration}
+        >
+          <Text style={styles.testButtonText}>執行系統測試</Text>
+        </TouchableOpacity>
       </View>
 
       <View 
@@ -233,17 +276,31 @@ export default function UploadScreen() {
                   <View style={styles.jobDetails}>
                     <Text style={styles.jobFileName}>{job.fileName}</Text>
                     <Text style={styles.jobStatus}>{getStatusText(job.status)}</Text>
+                    {job.errorMessage && (
+                      <Text style={styles.errorMessage}>{job.errorMessage}</Text>
+                    )}
                   </View>
                 </View>
-                {job.status === 'completed' && (
-                  <TouchableOpacity 
-                    style={styles.downloadButton}
-                    onPress={() => handleDownload(job)}
-                  >
-                    <Download size={16} color="#3B82F6" />
-                    <Text style={styles.downloadButtonText}>下載</Text>
-                  </TouchableOpacity>
-                )}
+                <View style={styles.jobActions}>
+                  {job.status === 'completed' && (
+                    <TouchableOpacity 
+                      style={styles.downloadButton}
+                      onPress={() => handleDownload(job)}
+                    >
+                      <Download size={16} color="#3B82F6" />
+                      <Text style={styles.downloadButtonText}>下載</Text>
+                    </TouchableOpacity>
+                  )}
+                  {job.status === 'error' && (
+                    <TouchableOpacity 
+                      style={styles.retryButton}
+                      onPress={() => handleRetry(job)}
+                    >
+                      <Upload size={16} color="#FFFFFF" />
+                      <Text style={styles.retryButtonText}>重試</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
               
               {(job.status === 'uploading' || job.status === 'translating') && (
@@ -281,7 +338,11 @@ export default function UploadScreen() {
           </View>
           <View style={styles.featureItem}>
             <CheckCircle size={20} color="#10B981" />
-            <Text style={styles.featureText}>快速處理和下載</Text>
+            <Text style={styles.featureText">快速處理和下載</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <CheckCircle size={20} color="#F59E0B" />
+            <Text style={styles.featureText}>輸出HTML格式（可轉換為PDF）</Text>
           </View>
         </View>
       </View>
@@ -312,6 +373,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 16,
+  },
+  testButton: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   uploadArea: {
     margin: 24,
@@ -404,6 +477,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
+  errorMessage: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 2,
+  },
+  jobActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   downloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,6 +497,20 @@ const styles = StyleSheet.create({
   },
   downloadButtonText: {
     color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
   },

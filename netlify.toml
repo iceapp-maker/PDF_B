@@ -1,11 +1,14 @@
+# netlify.toml
+
 [build]
-  command = "npx expo export:web"
+  command = "npm install --legacy-peer-deps && npm install expo @expo/cli && npx expo export:web"
   publish = "web-build"
   base = "."
 
 [build.environment]
-  NODE_VERSION = "18"
-  NPM_VERSION = "8"
+  NODE_VERSION = "20"
+  NPM_VERSION = "10"
+  EXPO_CLI_VERSION = "latest"
 
 # 單頁應用路由支援
 [[redirects]]
@@ -20,9 +23,3 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
-
-# 設定快取
-[[headers]]
-  for = "/static/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000"

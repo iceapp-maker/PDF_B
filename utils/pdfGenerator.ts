@@ -6,7 +6,7 @@ export interface TranslatedContent {
   page: number;
   position: { x: number; y: number };
 }
- 
+
 export class PDFGenerator {
   static async createTranslatedPDF(
     originalFileName: string,

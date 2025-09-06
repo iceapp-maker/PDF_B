@@ -1,17 +1,32 @@
 {
-  "scripts": {
-    "start": "expo start",
-    "web": "expo start --web",
-    "build": "npx expo export:web",
-    "build:web": "npx expo export:web",
-    "android": "expo start --android",
-    "ios": "expo start --ios"
-  },
-  "dependencies": {
-    "expo": "~49.0.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.72.6",
-    "react-native-web": "~0.19.6"
+  "expo": {
+    "name": "PDF翻譯工具",
+    "slug": "pdf-translator",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "platforms": ["ios", "android", "web"],
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    }
   }
 }

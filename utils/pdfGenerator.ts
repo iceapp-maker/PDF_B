@@ -1,5 +1,5 @@
 // utils/pdfGenerator.ts
-// React Native/Expo 兼容版本 - 不依賴 jsPDF
+// 簡化版PDF生成器，專為網頁環境設計
 
 export class PDFGenerator {
   /**
@@ -43,33 +43,36 @@ export class PDFGenerator {
   }
 
   /**
-   * 創建簡單的PDF內容（使用HTML模擬）
+   * 創建HTML格式的翻譯文檔
    */
   static async createTranslatedPDF(originalFileName: string, translatedContent: string): Promise<Blob> {
     try {
-      console.log('開始生成PDF...', originalFileName);
+      console.log('開始生成文檔...', originalFileName);
       
-      // 創建HTML內容來模擬PDF
+      // 創建HTML內容
       const htmlContent = `
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>翻譯文檔 - ${originalFileName}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
             margin: 40px;
-            line-height: 1.6;
+            line-height: 1.8;
             color: #333;
+            background: #fff;
         }
         .header {
-            border-bottom: 2px solid #007acc;
+            border-bottom: 3px solid #007acc;
             padding-bottom: 20px;
             margin-bottom: 30px;
+            text-align: center;
         }
         .title {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             color: #007acc;
             margin-bottom: 10px;
@@ -77,52 +80,59 @@ export class PDFGenerator {
         .meta {
             color: #666;
             font-size: 14px;
+            margin: 5px 0;
         }
         .content {
             white-space: pre-wrap;
             font-size: 16px;
+            margin: 20px 0;
         }
         .footer {
-            margin-top: 40px;
+            margin-top: 50px;
             padding-top: 20px;
             border-top: 1px solid #ddd;
             color: #666;
             font-size: 12px;
+            text-align: center;
         }
         @media print {
             body { margin: 20px; }
+            .no-print { display: none; }
+        }
+        @page {
+            margin: 2cm;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">翻譯文檔</div>
-        <div class="meta">
-            原始文件：${originalFileName}<br>
-            翻譯時間：${new Date().toLocaleString('zh-TW')}<br>
-            文檔狀態：翻譯完成
-        </div>
+        <div class="title">PDF 翻譯文檔</div>
+        <div class="meta">原始文件：${originalFileName}</div>
+        <div class="meta">翻譯時間：${new Date().toLocaleString('zh-TW')}</div>
+        <div class="meta">文檔狀態：翻譯完成</div>
     </div>
     
     <div class="content">${this.escapeHtml(translatedContent)}</div>
     
     <div class="footer">
-        此文檔由PDF翻譯工具自動生成 | 生成時間：${new Date().toISOString()}
+        <p>此文檔由PDF翻譯工具自動生成</p>
+        <p>生成時間：${new Date().toISOString()}</p>
+        <p class="no-print">提示：您可以使用瀏覽器的「列印」功能將此頁面儲存為PDF</p>
     </div>
 </body>
 </html>`;
 
-      // 將HTML轉換為Blob (模擬PDF)
+      // 將HTML轉換為Blob
       const blob = new Blob([htmlContent], { 
         type: 'text/html;charset=utf-8' 
       });
       
-      console.log('PDF生成完成，大小：', blob.size, 'bytes');
+      console.log('文檔生成完成，大小：', blob.size, 'bytes');
       return blob;
       
     } catch (error) {
-      console.error('PDF生成錯誤：', error);
-      throw new Error(`PDF生成失敗：${error.message}`);
+      console.error('文檔生成錯誤：', error);
+      throw new Error(`文檔生成失敗：${error.message}`);
     }
   }
 
@@ -130,6 +140,17 @@ export class PDFGenerator {
    * 轉義HTML字符
    */
   private static escapeHtml(text: string): string {
+    if (typeof document === 'undefined') {
+      // 服務端環境的簡單轉義
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\n/g, '<br>');
+    }
+    
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML.replace(/\n/g, '<br>');
@@ -166,8 +187,8 @@ export class PDFGenerator {
         throw new Error('文件格式無效');
       }
 
-      // 為HTML文件設置正確的文件名
-      const downloadFileName = fileName.replace('.pdf', '.html');
+      // 確保文件名有正確的擴展名
+      const downloadFileName = fileName.endsWith('.html') ? fileName : fileName.replace(/\.[^/.]+$/, '') + '.html';
 
       // 創建下載鏈接
       const url = URL.createObjectURL(blob);
@@ -191,39 +212,6 @@ export class PDFGenerator {
     } catch (error) {
       console.error('文件下載失敗：', error);
       return false;
-    }
-  }
-
-  /**
-   * 創建實際的PDF文件 (需要瀏覽器支持)
-   */
-  static async createRealPDF(originalFileName: string, translatedContent: string): Promise<Blob> {
-    try {
-      // 檢查瀏覽器是否支持 PDF API
-      if (typeof window === 'undefined' || !window.print) {
-        throw new Error('瀏覽器不支持PDF生成');
-      }
-
-      // 創建HTML內容
-      const htmlBlob = await this.createTranslatedPDF(originalFileName, translatedContent);
-      const htmlText = await htmlBlob.text();
-
-      // 創建臨時窗口並打印為PDF
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('無法創建打印窗口');
-      }
-
-      printWindow.document.write(htmlText);
-      printWindow.document.close();
-      
-      // 提示用戶手動保存為PDF
-      alert('請使用瀏覽器的 "打印" 功能，選擇 "另存為PDF" 來保存文件');
-      
-      return htmlBlob;
-    } catch (error) {
-      console.error('PDF創建失敗，將返回HTML格式：', error);
-      return await this.createTranslatedPDF(originalFileName, translatedContent);
     }
   }
 }

@@ -1,25 +1,14 @@
-# netlify.toml
-
 [build]
-  command = "npm install --legacy-peer-deps && npm install expo expo-router @expo/cli expo-status-bar && npx expo install --fix && npx expo export --platform web"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = "dist"
   base = "."
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_VERSION = "10"
-  EXPO_CLI_VERSION = "latest"
 
 # 單頁應用路由支援
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-# 設定 headers
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"

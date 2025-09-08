@@ -87,8 +87,13 @@ function App() {
         updateJob({ progress: i });
       }
 
-      // 獲取當前任務信息
-      const currentJob = jobs.find(job => job.id === jobId);
+      // 從狀態中獲取當前任務信息
+      let currentJob: TranslationJob | undefined;
+      setJobs(prev => {
+        currentJob = prev.find(job => job.id === jobId);
+        return prev;
+      });
+      
       if (!currentJob) {
         throw new Error('找不到翻譯任務');
       }
@@ -119,9 +124,9 @@ function App() {
       updateJob({ 
         status: 'error', 
         progress: 0,
-        errorMessage: error.message || '翻譯過程中發生未知錯誤'
+        errorMessage: (error as Error).message || '翻譯過程中發生未知錯誤'
       });
-      alert(error.message || '處理文件時發生錯誤，請重試。');
+      alert((error as Error).message || '處理文件時發生錯誤，請重試。');
     }
   };
 
@@ -140,7 +145,7 @@ function App() {
         alert('下載失敗，請重試');
       }
     } catch (error) {
-      alert(`下載錯誤：${error.message}`);
+      alert(`下載錯誤：${(error as Error).message}`);
     }
   };
 

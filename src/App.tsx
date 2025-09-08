@@ -95,18 +95,18 @@ const simulateTranslation = async (jobId: string) => {
       updateJob({ progress: i });
     }
 
-    // 關鍵修正：使用 setJobs 的回調來獲取最新狀態
-    const currentJob = await new Promise<TranslationJob | undefined>((resolve) => {
-      setJobs(prev => {
-        const job = prev.find(job => job.id === jobId);
-        resolve(job);
-        return prev; // 不修改狀態，只是為了獲取當前值
-      });
+    // 修正：直接從當前 jobs 狀態獲取任務信息
+    let currentJob: TranslationJob | undefined;
+    setJobs(prev => {
+      currentJob = prev.find(job => job.id === jobId);
+      return prev;
     });
 
     if (!currentJob) {
       throw new Error('找不到翻譯任務');
     }
+    
+    console.log('找到當前任務:', currentJob.fileName, '格式:', currentJob.outputFormat);
     
     // 生成翻譯內容
     const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
@@ -131,7 +131,9 @@ const simulateTranslation = async (jobId: string) => {
       translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
     }
     
-    // 完成任務
+    console.log('文件生成完成，開始更新任務狀態...');
+    
+    // 關鍵修正：確保狀態更新成功
     updateJob({ 
       status: 'completed', 
       progress: 100,
@@ -139,8 +141,12 @@ const simulateTranslation = async (jobId: string) => {
       translatedFileName: translatedFileName
     });
     
+    // 等待狀態更新完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
-    alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}`);
+    console.log('任務完成，格式:', formatText);
+    alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
     
   } catch (error) {
     console.error('翻譯失敗:', error);

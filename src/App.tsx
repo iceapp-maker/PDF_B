@@ -43,33 +43,35 @@ function App() {
     processFile(selectedFile);
   };
 
-  const processFile = async (file: File) => {
-    // 文件驗證
-    if (file.type !== 'application/pdf') {
-      alert('請選擇PDF格式的文件');
-      return;
-    }
+const processFile = async (file: File) => {
+  // 文件驗證
+  if (file.type !== 'application/pdf') {
+    alert('請選擇PDF格式的文件');
+    return;
+  }
 
-    if (file.size > 50 * 1024 * 1024) { // 50MB limit
-      alert('文件大小不能超過50MB');
-      return;
-    }
+  if (file.size > 50 * 1024 * 1024) { // 50MB limit
+    alert('文件大小不能超過50MB');
+    return;
+  }
 
-    const jobId = Date.now().toString();
-    const newJob: TranslationJob = {
-      id: jobId,
-      fileName: file.name,
-      status: 'uploading',
-      progress: 0,
-      uploadTime: new Date(),
-      outputFormat: outputFormat, // 記錄選擇的格式
-    };
-
-    setJobs(prev => [newJob, ...prev]);
-
-    // 開始翻譯處理
-    await simulateTranslation(jobId);
+  const jobId = Date.now().toString();
+  const newJob: TranslationJob = {
+    id: jobId,
+    fileName: file.name,
+    status: 'uploading',
+    progress: 0,
+    uploadTime: new Date(),
+    outputFormat: outputFormat, // 確保格式正確傳遞
   };
+
+  console.log('創建新任務:', newJob); // 調試信息
+
+  setJobs(prev => [newJob, ...prev]);
+
+  // 開始翻譯處理
+  await simulateTranslation(jobId);
+};
 
   // 在 App.tsx 的 simulateTranslation 函數中添加更好的錯誤處理
 

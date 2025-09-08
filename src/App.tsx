@@ -74,18 +74,12 @@ function App() {
 const simulateTranslation = async (jobId: string) => {
   console.log('開始翻譯任務:', jobId);
   
-  const updateJob = (updates: Partial<TranslationJob>) => {
-    setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, ...updates } : job
-    ));
-  };
-
-  // 保存任務的輸出格式，避免狀態同步問題
+  // 保存任務信息的本地變量
   let taskOutputFormat: 'html' | 'svg' = outputFormat;
   let taskFileName = '';
 
   try {
-    // 在開始時記錄任務信息
+    // 獲取並記錄任務信息
     setJobs(prev => {
       const currentJob = prev.find(job => job.id === jobId);
       if (currentJob) {
@@ -96,30 +90,34 @@ const simulateTranslation = async (jobId: string) => {
       return prev;
     });
 
+    // 驗證任務信息
+    if (!taskFileName) {
+      throw new Error('任務信息獲取失敗');
+    }
+
     // 模擬上傳進度
     console.log('開始上傳進度模擬...');
     for (let i = 0; i <= 100; i += 10) {
+      setJobs(prev => prev.map(job => 
+        job.id === jobId ? { ...job, progress: i } : job
+      ));
       await new Promise(resolve => setTimeout(resolve, 100));
-      updateJob({ progress: i });
     }
 
     console.log('上傳完成，開始翻譯...');
-    updateJob({ status: 'translating', progress: 0 });
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? { ...job, status: 'translating', progress: 0 } : job
+    ));
 
     // 模擬翻譯進度
     for (let i = 0; i <= 100; i += 5) {
+      setJobs(prev => prev.map(job => 
+        job.id === jobId ? { ...job, progress: i } : job
+      ));
       await new Promise(resolve => setTimeout(resolve, 200));
-      updateJob({ progress: i });
     }
 
     console.log('翻譯進度完成，開始生成文件...');
-
-    // 驗證任務信息
-    if (!taskFileName) {
-      throw new Error('任務文件名未正確記錄');
-    }
-    
-    console.log('使用記錄的任務信息:', { taskFileName, taskOutputFormat });
     
     // 生成翻譯內容
     const translatedContent = await PDFGenerator.simulateTranslation(taskFileName);
@@ -144,31 +142,56 @@ const simulateTranslation = async (jobId: string) => {
       translatedFileName = `translated_${taskFileName.replace('.pdf', '.html')}`;
     }
     
-    console.log('文件生成完成，開始更新任務狀態...');
+    console.log('文件生成完成，文件大小:', fileBlob.size, 'bytes');
+    console.log('翻譯文件名:', translatedFileName);
     
-    // 更新任務為完成狀態
-    updateJob({ 
-      status: 'completed', 
-      progress: 100,
-      fileBlob: fileBlob,
-      translatedFileName: translatedFileName
+    // 關鍵修正：確保狀態更新成功
+    setJobs(prev => {
+      const updatedJobs = prev.map(job => {
+        if (job.id === jobId) {
+          const updatedJob = {
+            ...job,
+            status: 'completed' as const,
+            progress: 100,
+            fileBlob: fileBlob,
+            translatedFileName: translatedFileName
+          };
+          console.log('更新任務狀態:', updatedJob);
+          return updatedJob;
+        }
+        return job;
+      });
+      
+      console.log('所有任務狀態:', updatedJobs);
+      return updatedJobs;
     });
     
-    // 等待狀態更新完成
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // 增加等待時間確保狀態更新
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const formatText = taskOutputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
     console.log('任務完成，格式:', formatText);
-    alert(`${taskFileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
+    
+    // 驗證狀態更新是否成功
+    setJobs(prev => {
+      const completedJobs = prev.filter(job => job.status === 'completed');
+      console.log('已完成的任務數量:', completedJobs.length);
+      return prev;
+    });
+    
+    alert(`${taskFileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。\n\n如果下載中心仍為空，請刷新頁面後重試。`);
     
   } catch (error) {
     console.error('翻譯失敗:', error);
-    updateJob({ 
-      status: 'error', 
-      progress: 0,
-      errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
-    });
-    alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? {
+        ...job,
+        status: 'error' as const,
+        progress: 0,
+        errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
+      } : job
+    ));
+    alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`);
   }
 };
 

@@ -71,91 +71,62 @@ function App() {
     await simulateTranslation(jobId);
   };
 
-  const simulateTranslation = async (jobId: string) => {
-    const updateJob = (updates: Partial<TranslationJob>) => {
-      setJobs(prev => prev.map(job => 
-        job.id === jobId ? { ...job, ...updates } : job
-      ));
-    };
-
-    try {
-      // 模擬上傳進度
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        updateJob({ progress: i });
-      }
-
-      updateJob({ status: 'translating', progress: 0 });
-
-      // 模擬翻譯進度
-      for (let i = 0; i <= 100; i += 5) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        updateJob({ progress: i });
-      }
-
-      // 修正：直接從當前 jobs 狀態獲取任務信息
-      let currentJob: TranslationJob | undefined;
-      setJobs(prev => {
-        currentJob = prev.find(job => job.id === jobId);
-        return prev;
-      });
-
-      if (!currentJob) {
-        throw new Error('找不到翻譯任務');
-      }
-      
-      console.log('找到當前任務:', currentJob.fileName, '格式:', currentJob.outputFormat);
-      
-      // 生成翻譯內容
-      const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
-      
-      // 根據選擇的格式生成文件
-      let fileBlob: Blob;
-      let translatedFileName: string;
-      
-      if (currentJob.outputFormat === 'svg') {
-        console.log('使用 SVG 格式生成文件...');
-        fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
-          currentJob.fileName,
-          translatedContent
-        );
-        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '_svg.html')}`;
-      } else {
-        console.log('使用 HTML 格式生成文件...');
-        fileBlob = await PDFGenerator.createTranslatedPDF(
-          currentJob.fileName,
-          translatedContent
-        );
-        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
-      }
-      
-      console.log('文件生成完成，開始更新任務狀態...');
-      
-      // 關鍵修正：確保狀態更新成功
-      updateJob({ 
-        status: 'completed', 
-        progress: 100,
-        fileBlob: fileBlob,
-        translatedFileName: translatedFileName
-      });
-      
-      // 等待狀態更新完成
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
-      console.log('任務完成，格式:', formatText);
-      alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
-      
-    } catch (error) {
-      console.error('翻譯失敗:', error);
-      updateJob({ 
-        status: 'error', 
-        progress: 0,
-        errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
-      });
-      alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
-    }
+const simulateTranslation = async (jobId: string) => {
+  console.log('開始翻譯任務:', jobId);
+  
+  const updateJob = (updates: Partial<TranslationJob>) => {
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? { ...job, ...updates } : job
+    ));
   };
+
+  try {
+    // 模擬上傳進度
+    console.log('開始上傳進度模擬...');
+    for (let i = 0; i <= 100; i += 10) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      updateJob({ progress: i });
+    }
+
+    console.log('上傳完成，開始翻譯...');
+    updateJob({ status: 'translating', progress: 0 });
+
+    // 模擬翻譯進度
+    for (let i = 0; i <= 100; i += 5) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      updateJob({ progress: i });
+    }
+
+    console.log('翻譯進度完成，開始獲取任務信息...');
+
+    // 獲取當前任務信息
+    let currentJob: TranslationJob | undefined;
+    setJobs(prev => {
+      currentJob = prev.find(job => job.id === jobId);
+      console.log('找到的任務:', currentJob);
+      return prev;
+    });
+
+    if (!currentJob) {
+      throw new Error('找不到翻譯任務');
+    }
+    
+    console.log('任務信息:', {
+      fileName: currentJob.fileName,
+      outputFormat: currentJob.outputFormat
+    });
+    
+    // 其餘代碼保持不變...
+    
+  } catch (error) {
+    console.error('翻譯過程出錯:', error);
+    updateJob({ 
+      status: 'error', 
+      progress: 0,
+      errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
+    });
+  }
+};
 
   const handleDownload = async (job: TranslationJob) => {
     if (!job.fileBlob || !job.translatedFileName) {

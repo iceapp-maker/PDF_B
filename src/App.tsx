@@ -80,7 +80,22 @@ const simulateTranslation = async (jobId: string) => {
     ));
   };
 
+  // 保存任務的輸出格式，避免狀態同步問題
+  let taskOutputFormat: 'html' | 'svg' = outputFormat;
+  let taskFileName = '';
+
   try {
+    // 在開始時記錄任務信息
+    setJobs(prev => {
+      const currentJob = prev.find(job => job.id === jobId);
+      if (currentJob) {
+        taskOutputFormat = currentJob.outputFormat || 'html';
+        taskFileName = currentJob.fileName;
+        console.log('記錄任務信息:', { taskFileName, taskOutputFormat });
+      }
+      return prev;
+    });
+
     // 模擬上傳進度
     console.log('開始上傳進度模擬...');
     for (let i = 0; i <= 100; i += 10) {
@@ -97,56 +112,65 @@ const simulateTranslation = async (jobId: string) => {
       updateJob({ progress: i });
     }
 
-    console.log('翻譯進度完成，開始獲取任務信息...');
+    console.log('翻譯進度完成，開始生成文件...');
 
-    // 獲取當前任務信息
-    let currentJob: TranslationJob | undefined;
-    setJobs(prev => {
-      currentJob = prev.find(job => job.id === jobId);
-      console.log('找到的任務:', currentJob);
-      return prev;
-    });
-
-    if (!currentJob) {
-      throw new Error('找不到翻譯任務');
+    // 驗證任務信息
+    if (!taskFileName) {
+      throw new Error('任務文件名未正確記錄');
     }
     
-    console.log('任務信息:', {
-      fileName: currentJob.fileName,
-      outputFormat: currentJob.outputFormat
+    console.log('使用記錄的任務信息:', { taskFileName, taskOutputFormat });
+    
+    // 生成翻譯內容
+    const translatedContent = await PDFGenerator.simulateTranslation(taskFileName);
+    
+    // 根據選擇的格式生成文件
+    let fileBlob: Blob;
+    let translatedFileName: string;
+    
+    if (taskOutputFormat === 'svg') {
+      console.log('使用 SVG 格式生成文件...');
+      fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
+        taskFileName,
+        translatedContent
+      );
+      translatedFileName = `translated_${taskFileName.replace('.pdf', '_svg.html')}`;
+    } else {
+      console.log('使用 HTML 格式生成文件...');
+      fileBlob = await PDFGenerator.createTranslatedPDF(
+        taskFileName,
+        translatedContent
+      );
+      translatedFileName = `translated_${taskFileName.replace('.pdf', '.html')}`;
+    }
+    
+    console.log('文件生成完成，開始更新任務狀態...');
+    
+    // 更新任務為完成狀態
+    updateJob({ 
+      status: 'completed', 
+      progress: 100,
+      fileBlob: fileBlob,
+      translatedFileName: translatedFileName
     });
     
-    // 其餘代碼保持不變...
+    // 等待狀態更新完成
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const formatText = taskOutputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
+    console.log('任務完成，格式:', formatText);
+    alert(`${taskFileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
     
   } catch (error) {
-    console.error('翻譯過程出錯:', error);
+    console.error('翻譯失敗:', error);
     updateJob({ 
       status: 'error', 
       progress: 0,
       errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
     });
+    alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
   }
 };
-
-  const handleDownload = async (job: TranslationJob) => {
-    if (!job.fileBlob || !job.translatedFileName) {
-      alert('文件尚未準備好');
-      return;
-    }
-
-    try {
-      const success = await PDFGenerator.downloadPDF(job.fileBlob, job.translatedFileName);
-      
-      if (success) {
-        const formatText = job.outputFormat === 'svg' ? 'SVG格式的HTML' : '標準HTML';
-        alert(`${job.translatedFileName} 已下載到您的電腦\n\n格式：${formatText}\n注意：文件格式為HTML，可用瀏覽器打開查看，或使用瀏覽器的打印功能另存為PDF。`);
-      } else {
-        alert('下載失敗，請重試');
-      }
-    } catch (error) {
-      alert(`下載錯誤：${error instanceof Error ? error.message : '未知錯誤'}`);
-    }
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

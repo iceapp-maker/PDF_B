@@ -69,42 +69,50 @@ function App() {
     await simulateTranslation(jobId);
   };
 
-  const simulateTranslation = async (jobId: string) => {
-    const updateJob = (updates: Partial<TranslationJob>) => {
-      setJobs(prev => prev.map(job => 
-        job.id === jobId ? { ...job, ...updates } : job
-      ));
-    };
+  // 在 App.tsx 的 simulateTranslation 函數中添加更好的錯誤處理
 
+const simulateTranslation = async (jobId: string) => {
+  const updateJob = (updates: Partial<TranslationJob>) => {
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? { ...job, ...updates } : job
+    ));
+  };
+
+  try {
+    // 模擬上傳進度
+    for (let i = 0; i <= 100; i += 10) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      updateJob({ progress: i });
+    }
+
+    updateJob({ status: 'translating', progress: 0 });
+
+    // 模擬翻譯進度
+    for (let i = 0; i <= 100; i += 5) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      updateJob({ progress: i });
+    }
+
+    // 獲取當前任務信息
+    const currentJob = jobs.find(job => job.id === jobId);
+    if (!currentJob) {
+      throw new Error('找不到翻譯任務');
+    }
+    
+    // 生成翻譯內容
+    const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
+    
+    // 根據選擇的格式生成文件
+    let fileBlob: Blob;
+    let translatedFileName: string;
+    
     try {
-      // 模擬上傳進度
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        updateJob({ progress: i });
-      }
-
-      updateJob({ status: 'translating', progress: 0 });
-
-      // 模擬翻譯進度
-      for (let i = 0; i <= 100; i += 5) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        updateJob({ progress: i });
-      }
-
-      // 獲取當前任務信息
-      const currentJob = jobs.find(job => job.id === jobId);
-      if (!currentJob) {
-        throw new Error('找不到翻譯任務');
-      }
-      
-      // 生成翻譯內容
-      const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
-      
-      // 根據選擇的格式生成文件
-      let fileBlob: Blob;
-      let translatedFileName: string;
-      
       if (currentJob.outputFormat === 'svg') {
+        // 檢查 SVGPdfGenerator 是否可用
+        if (typeof SVGPdfGenerator === 'undefined') {
+          throw new Error('SVGPdfGenerator 未正確載入，請檢查檔案是否存在');
+        }
+        
         fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
           currentJob.fileName,
           translatedContent
@@ -117,29 +125,35 @@ function App() {
         );
         translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
       }
-      
-      // 完成任務
-      updateJob({ 
-        status: 'completed', 
-        progress: 100,
-        fileBlob: fileBlob,
-        translatedFileName: translatedFileName
-      });
-      
-      const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
-      alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}`);
-      
-    } catch (error) {
-      console.error('翻譯失敗:', error);
-      updateJob({ 
-        status: 'error', 
-        progress: 0,
-        errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
-      });
-      alert('處理文件時發生錯誤，請重試。');
+    } catch (generatorError) {
+      console.error('文件生成錯誤:', generatorError);
+      throw new Error(`文件生成失敗: ${generatorError.message}`);
     }
-  };
-
+    
+    // 完成任務
+    updateJob({ 
+      status: 'completed', 
+      progress: 100,
+      fileBlob: fileBlob,
+      translatedFileName: translatedFileName
+    });
+    
+    const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
+    alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}`);
+    
+  } catch (error) {
+    console.error('翻譯失敗:', error);
+    updateJob({ 
+      status: 'error', 
+      progress: 0,
+      errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
+    });
+    
+    // 顯示更詳細的錯誤訊息
+    const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+    alert(`處理文件時發生錯誤：${errorMessage}\n\n請檢查：\n1. 是否已創建 svgPdfGenerator.ts 檔案\n2. 瀏覽器控制台是否有其他錯誤訊息`);
+  }
+};
   const handleDownload = async (job: TranslationJob) => {
     if (!job.fileBlob || !job.translatedFileName) {
       alert('文件尚未準備好');

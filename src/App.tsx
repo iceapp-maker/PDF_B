@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Upload, FileText, Download, CheckCircle, AlertCircle, Settings } from 'lucide-react';
+import { Upload, FileText, Download, CheckCircle, AlertCircle, Settings, Calendar, Clock } from 'lucide-react';
 import { PDFGenerator } from './utils/pdfGenerator';
-import { SVGPdfGenerator } from './utils/svgPdfGenerator'; // 確保這行存在
+import { SVGPdfGenerator } from './utils/svgPdfGenerator';
 
 interface TranslationJob {
   id: string;
@@ -20,8 +20,6 @@ function App() {
   const [activeTab, setActiveTab] = useState<'upload' | 'history' | 'downloads'>('upload');
   const [isDragOver, setIsDragOver] = useState(false);
   const [outputFormat, setOutputFormat] = useState<'html' | 'svg'>('html');
-
-  // ... 其餘代碼保持不變
 
   const handleFileUpload = async (file?: File) => {
     let selectedFile = file;
@@ -43,123 +41,122 @@ function App() {
     processFile(selectedFile);
   };
 
-const processFile = async (file: File) => {
-  // 文件驗證
-  if (file.type !== 'application/pdf') {
-    alert('請選擇PDF格式的文件');
-    return;
-  }
-
-  if (file.size > 50 * 1024 * 1024) { // 50MB limit
-    alert('文件大小不能超過50MB');
-    return;
-  }
-
-  const jobId = Date.now().toString();
-  const newJob: TranslationJob = {
-    id: jobId,
-    fileName: file.name,
-    status: 'uploading',
-    progress: 0,
-    uploadTime: new Date(),
-    outputFormat: outputFormat, // 確保格式正確傳遞
-  };
-
-  console.log('創建新任務:', newJob); // 調試信息
-
-  setJobs(prev => [newJob, ...prev]);
-
-  // 開始翻譯處理
-  await simulateTranslation(jobId);
-};
-
-  // 在 App.tsx 的 simulateTranslation 函數中添加更好的錯誤處理
-
-const simulateTranslation = async (jobId: string) => {
-  const updateJob = (updates: Partial<TranslationJob>) => {
-    setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, ...updates } : job
-    ));
-  };
-
-  try {
-    // 模擬上傳進度
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      updateJob({ progress: i });
+  const processFile = async (file: File) => {
+    // 文件驗證
+    if (file.type !== 'application/pdf') {
+      alert('請選擇PDF格式的文件');
+      return;
     }
 
-    updateJob({ status: 'translating', progress: 0 });
-
-    // 模擬翻譯進度
-    for (let i = 0; i <= 100; i += 5) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      updateJob({ progress: i });
+    if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      alert('文件大小不能超過50MB');
+      return;
     }
 
-    // 修正：直接從當前 jobs 狀態獲取任務信息
-    let currentJob: TranslationJob | undefined;
-    setJobs(prev => {
-      currentJob = prev.find(job => job.id === jobId);
-      return prev;
-    });
-
-    if (!currentJob) {
-      throw new Error('找不到翻譯任務');
-    }
-    
-    console.log('找到當前任務:', currentJob.fileName, '格式:', currentJob.outputFormat);
-    
-    // 生成翻譯內容
-    const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
-    
-    // 根據選擇的格式生成文件
-    let fileBlob: Blob;
-    let translatedFileName: string;
-    
-    if (currentJob.outputFormat === 'svg') {
-      console.log('使用 SVG 格式生成文件...');
-      fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
-        currentJob.fileName,
-        translatedContent
-      );
-      translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '_svg.html')}`;
-    } else {
-      console.log('使用 HTML 格式生成文件...');
-      fileBlob = await PDFGenerator.createTranslatedPDF(
-        currentJob.fileName,
-        translatedContent
-      );
-      translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
-    }
-    
-    console.log('文件生成完成，開始更新任務狀態...');
-    
-    // 關鍵修正：確保狀態更新成功
-    updateJob({ 
-      status: 'completed', 
-      progress: 100,
-      fileBlob: fileBlob,
-      translatedFileName: translatedFileName
-    });
-    
-    // 等待狀態更新完成
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
-    console.log('任務完成，格式:', formatText);
-    alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
-    
-  } catch (error) {
-    console.error('翻譯失敗:', error);
-    updateJob({ 
-      status: 'error', 
+    const jobId = Date.now().toString();
+    const newJob: TranslationJob = {
+      id: jobId,
+      fileName: file.name,
+      status: 'uploading',
       progress: 0,
-      errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
-    });
-    alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
-  }
-};
+      uploadTime: new Date(),
+      outputFormat: outputFormat, // 確保格式正確傳遞
+    };
+
+    console.log('創建新任務:', newJob);
+
+    setJobs(prev => [newJob, ...prev]);
+
+    // 開始翻譯處理
+    await simulateTranslation(jobId);
+  };
+
+  const simulateTranslation = async (jobId: string) => {
+    const updateJob = (updates: Partial<TranslationJob>) => {
+      setJobs(prev => prev.map(job => 
+        job.id === jobId ? { ...job, ...updates } : job
+      ));
+    };
+
+    try {
+      // 模擬上傳進度
+      for (let i = 0; i <= 100; i += 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        updateJob({ progress: i });
+      }
+
+      updateJob({ status: 'translating', progress: 0 });
+
+      // 模擬翻譯進度
+      for (let i = 0; i <= 100; i += 5) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        updateJob({ progress: i });
+      }
+
+      // 修正：直接從當前 jobs 狀態獲取任務信息
+      let currentJob: TranslationJob | undefined;
+      setJobs(prev => {
+        currentJob = prev.find(job => job.id === jobId);
+        return prev;
+      });
+
+      if (!currentJob) {
+        throw new Error('找不到翻譯任務');
+      }
+      
+      console.log('找到當前任務:', currentJob.fileName, '格式:', currentJob.outputFormat);
+      
+      // 生成翻譯內容
+      const translatedContent = await PDFGenerator.simulateTranslation(currentJob.fileName);
+      
+      // 根據選擇的格式生成文件
+      let fileBlob: Blob;
+      let translatedFileName: string;
+      
+      if (currentJob.outputFormat === 'svg') {
+        console.log('使用 SVG 格式生成文件...');
+        fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
+          currentJob.fileName,
+          translatedContent
+        );
+        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '_svg.html')}`;
+      } else {
+        console.log('使用 HTML 格式生成文件...');
+        fileBlob = await PDFGenerator.createTranslatedPDF(
+          currentJob.fileName,
+          translatedContent
+        );
+        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
+      }
+      
+      console.log('文件生成完成，開始更新任務狀態...');
+      
+      // 關鍵修正：確保狀態更新成功
+      updateJob({ 
+        status: 'completed', 
+        progress: 100,
+        fileBlob: fileBlob,
+        translatedFileName: translatedFileName
+      });
+      
+      // 等待狀態更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const formatText = currentJob.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式';
+      console.log('任務完成，格式:', formatText);
+      alert(`${currentJob.fileName} 已成功翻譯完成！\n輸出格式：${formatText}\n\n請到「下載中心」查看並下載文件。`);
+      
+    } catch (error) {
+      console.error('翻譯失敗:', error);
+      updateJob({ 
+        status: 'error', 
+        progress: 0,
+        errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
+      });
+      alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
+    }
+  };
+
   const handleDownload = async (job: TranslationJob) => {
     if (!job.fileBlob || !job.translatedFileName) {
       alert('文件尚未準備好');
@@ -180,7 +177,6 @@ const simulateTranslation = async (jobId: string) => {
     }
   };
 
-  // ... 其他函數保持不變 ...
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
@@ -327,7 +323,7 @@ const simulateTranslation = async (jobId: string) => {
                 </p>
               </div>
 
-              {/* Upload Area - 保持原有代碼 */}
+              {/* Upload Area */}
               <div 
                 className="card"
                 style={{
@@ -356,12 +352,263 @@ const simulateTranslation = async (jobId: string) => {
                 </button>
               </div>
 
-              {/* 其餘 UI 代碼保持不變... */}
-              {/* Jobs List, Features 等區塊保持原有代碼 */}
+              {/* Jobs List */}
+              {jobs.length > 0 && (
+                <div>
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#111827', marginBottom: '20px' }}>
+                    翻譯任務
+                  </h2>
+                  {jobs.map((job) => (
+                    <div key={job.id} className="card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                          {getStatusIcon(job.status)}
+                          <div style={{ marginLeft: '12px', flex: 1 }}>
+                            <h4 style={{ fontSize: '16px', fontWeight: '500', color: '#111827', marginBottom: '4px' }}>
+                              {job.fileName}
+                            </h4>
+                            <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                              {getStatusText(job.status)} ({job.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式'})
+                            </p>
+                            {job.errorMessage && (
+                              <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px' }}>
+                                {job.errorMessage}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {job.status === 'completed' && (
+                            <button 
+                              className="btn btn-secondary"
+                              onClick={() => handleDownload(job)}
+                              style={{ padding: '6px 12px', fontSize: '14px' }}
+                            >
+                              <Download size={16} />
+                              下載
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {(job.status === 'uploading' || job.status === 'translating') && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div className="progress-bar" style={{ flex: 1 }}>
+                            <div 
+                              className="progress-fill"
+                              style={{ width: `${job.progress}%` }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500', minWidth: '35px' }}>
+                            {job.progress}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Features */}
+              <div className="card" style={{ marginTop: '40px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#111827', marginBottom: '20px' }}>
+                  功能特色
+                </h2>
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  {[
+                    '保持原有PDF格式和排版',
+                    '智能識別表格和圖片',
+                    '高品質中文翻譯',
+                    '快速處理和下載',
+                    '支援HTML和SVG兩種輸出格式'
+                  ].map((feature, index) => (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <CheckCircle size={20} color="#10b981" />
+                      <span style={{ fontSize: '16px', color: '#374151' }}>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* 其他 tab 內容保持不變... */}
+          {activeTab === 'history' && (
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '600', color: '#111827', marginBottom: '20px' }}>
+                翻譯記錄
+              </h2>
+              {jobs.length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '60px 40px' }}>
+                  <FileText size={64} color="#d1d5db" style={{ margin: '0 auto 20px' }} />
+                  <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                    暫無翻譯記錄
+                  </h3>
+                  <p style={{ fontSize: '16px', color: '#6b7280' }}>
+                    上傳您的第一個PDF文件開始翻譯
+                  </p>
+                </div>
+              ) : (
+                jobs.map((job) => (
+                  <div key={job.id} className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                        <FileText size={24} color="#3b82f6" />
+                        <div style={{ marginLeft: '12px', flex: 1 }}>
+                          <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '8px' }}>
+                            {job.fileName}
+                          </h4>
+                          <div style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Calendar size={14} color="#6b7280" />
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                                {formatDate(job.uploadTime)}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Settings size={14} color="#6b7280" />
+                              <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                                {job.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        backgroundColor: job.status === 'completed' ? '#d1fae5' : job.status === 'error' ? '#fee2e2' : '#dbeafe',
+                        color: job.status === 'completed' ? '#065f46' : job.status === 'error' ? '#991b1b' : '#1e40af',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}>
+                        {getStatusText(job.status)}
+                      </div>
+                      {job.status === 'completed' && (
+                        <button 
+                          className="btn btn-secondary"
+                          onClick={() => handleDownload(job)}
+                          style={{ padding: '6px 12px', fontSize: '14px' }}
+                        >
+                          <Download size={16} />
+                          下載
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'downloads' && (
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '600', color: '#111827', marginBottom: '20px' }}>
+                下載中心
+              </h2>
+              
+              {/* 調試信息區塊 */}
+              <div style={{ marginBottom: '20px', padding: '15px', background: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '8px', fontSize: '14px' }}>
+                <h4 style={{ marginBottom: '10px', color: '#0c4a6e' }}>🔍 調試信息：</h4>
+                <p><strong>總任務數:</strong> {jobs.length}</p>
+                <p><strong>已完成任務數:</strong> {jobs.filter(j => j.status === 'completed').length}</p>
+                <p><strong>處理中任務數:</strong> {jobs.filter(j => j.status === 'translating').length}</p>
+                <details style={{ marginTop: '10px' }}>
+                  <summary style={{ cursor: 'pointer', color: '#0c4a6e' }}>查看詳細任務信息</summary>
+                  <pre style={{ background: '#fff', padding: '10px', borderRadius: '4px', overflow: 'auto', marginTop: '5px', fontSize: '12px' }}>
+                    {JSON.stringify(
+                      jobs.map(j => ({ 
+                        id: j.id.slice(-4), 
+                        fileName: j.fileName, 
+                        status: j.status, 
+                        outputFormat: j.outputFormat,
+                        hasBlob: !!j.fileBlob,
+                        translatedFileName: j.translatedFileName
+                      })), 
+                      null, 
+                      2
+                    )}
+                  </pre>
+                </details>
+              </div>
+              
+              {/* Stats */}
+              <div className="card" style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#3b82f6', marginBottom: '4px' }}>
+                      {jobs.length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                      總文件數
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#3b82f6', marginBottom: '4px' }}>
+                      {jobs.filter(j => j.status === 'completed').length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                      可下載
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#3b82f6', marginBottom: '4px' }}>
+                      {jobs.filter(j => j.status === 'translating').length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                      處理中
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {jobs.filter(job => job.status === 'completed').length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '60px 40px' }}>
+                  <Download size={64} color="#d1d5db" style={{ margin: '0 auto 20px' }} />
+                  <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                    暫無可下載文件
+                  </h3>
+                  <p style={{ fontSize: '16px', color: '#6b7280' }}>
+                    完成翻譯後的文件將出現在這裡
+                  </p>
+                </div>
+              ) : (
+                jobs.filter(job => job.status === 'completed').map((job) => (
+                  <div key={job.id} className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                        <FileText size={24} color="#3b82f6" />
+                        <div style={{ marginLeft: '12px', flex: 1 }}>
+                          <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                            {job.translatedFileName || '文件名未設置'}
+                          </h4>
+                          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>
+                            原文件：{job.fileName}
+                          </p>
+                          <p style={{ fontSize: '14px', color: '#9ca3af' }}>
+                            {formatDate(job.uploadTime)}
+                          </p>
+                          <p style={{ fontSize: '12px', color: job.outputFormat === 'svg' ? '#7c3aed' : '#059669' }}>
+                            格式：{job.outputFormat === 'svg' ? 'SVG格式' : 'HTML格式'}
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleDownload(job)}
+                        style={{ padding: '8px 16px', fontSize: '14px' }}
+                      >
+                        <Download size={16} />
+                        下載
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

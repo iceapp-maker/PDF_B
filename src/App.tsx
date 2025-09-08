@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileText, Download, CheckCircle, AlertCircle, Settings } from 'lucide-react';
 import { PDFGenerator } from './utils/pdfGenerator';
-import { SVGPdfGenerator } from './utils/svgPdfGenerator';
+import { SVGPdfGenerator } from './utils/svgPdfGenerator'; // 確保這行存在
 
 interface TranslationJob {
   id: string;
@@ -12,14 +12,16 @@ interface TranslationJob {
   fileBlob?: Blob;
   translatedFileName?: string;
   errorMessage?: string;
-  outputFormat?: 'html' | 'svg'; // 新增輸出格式
+  outputFormat?: 'html' | 'svg';
 }
 
 function App() {
   const [jobs, setJobs] = useState<TranslationJob[]>([]);
   const [activeTab, setActiveTab] = useState<'upload' | 'history' | 'downloads'>('upload');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [outputFormat, setOutputFormat] = useState<'html' | 'svg'>('html'); // 新增格式選擇
+  const [outputFormat, setOutputFormat] = useState<'html' | 'svg'>('html');
+
+  // ... 其餘代碼保持不變
 
   const handleFileUpload = async (file?: File) => {
     let selectedFile = file;

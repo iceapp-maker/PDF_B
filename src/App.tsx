@@ -112,9 +112,7 @@ function App() {
       // 完成任務
       updateJob({ 
         status: 'completed', 
-        progress: 100,
-        fileBlob: fileBlob,
-        translatedFileName: translatedFileName
+        progress: 100
       });
       
       alert(`${currentJob.fileName} 已成功翻譯完成！`);
@@ -131,21 +129,26 @@ function App() {
   };
 
   const handleDownload = async (job: TranslationJob) => {
-    if (!job.fileBlob || !job.translatedFileName) {
-      alert('文件尚未準備好');
+    if (job.status !== 'completed') {
+      alert('翻譯尚未完成，請稍候');
       return;
     }
 
     try {
-      const success = await PDFGenerator.downloadPDF(job.fileBlob, job.translatedFileName);
+      // 重新生成翻譯內容
+      const translatedContent = await PDFGenerator.simulateTranslation(job.fileName);
+      
+      // 在新視窗中顯示翻譯內容
+      const success = await PDFGenerator.displayTranslatedContent(translatedContent, job.fileName);
       
       if (success) {
-        alert(`${job.translatedFileName} 已下載到您的電腦\n\n注意：文件格式為HTML，可用瀏覽器打開查看，或使用瀏覽器的打印功能另存為PDF。`);
+        // 不需要顯示alert，因為內容已經在新視窗中打開
       } else {
-        alert('下載失敗，請重試');
+        alert('無法顯示翻譯內容，請檢查瀏覽器的彈出視窗設定');
       }
     } catch (error) {
-      alert(`下載錯誤：${(error as Error).message}`);
+      console.error('顯示翻譯內容時發生錯誤：', error);
+      alert(`顯示內容時發生錯誤：${(error as Error).message}`);
     }
   };
 

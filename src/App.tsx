@@ -95,8 +95,15 @@ const simulateTranslation = async (jobId: string) => {
       updateJob({ progress: i });
     }
 
-    // 獲取當前任務信息
-    const currentJob = jobs.find(job => job.id === jobId);
+    // 關鍵修正：使用 setJobs 的回調來獲取最新狀態
+    const currentJob = await new Promise<TranslationJob | undefined>((resolve) => {
+      setJobs(prev => {
+        const job = prev.find(job => job.id === jobId);
+        resolve(job);
+        return prev; // 不修改狀態，只是為了獲取當前值
+      });
+    });
+
     if (!currentJob) {
       throw new Error('找不到翻譯任務');
     }
@@ -108,28 +115,20 @@ const simulateTranslation = async (jobId: string) => {
     let fileBlob: Blob;
     let translatedFileName: string;
     
-    try {
-      if (currentJob.outputFormat === 'svg') {
-        // 檢查 SVGPdfGenerator 是否可用
-        if (typeof SVGPdfGenerator === 'undefined') {
-          throw new Error('SVGPdfGenerator 未正確載入，請檢查檔案是否存在');
-        }
-        
-        fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
-          currentJob.fileName,
-          translatedContent
-        );
-        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '_svg.html')}`;
-      } else {
-        fileBlob = await PDFGenerator.createTranslatedPDF(
-          currentJob.fileName,
-          translatedContent
-        );
-        translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
-      }
-    } catch (generatorError) {
-      console.error('文件生成錯誤:', generatorError);
-      throw new Error(`文件生成失敗: ${generatorError.message}`);
+    if (currentJob.outputFormat === 'svg') {
+      console.log('使用 SVG 格式生成文件...');
+      fileBlob = await SVGPdfGenerator.createSVGTranslatedPDF(
+        currentJob.fileName,
+        translatedContent
+      );
+      translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '_svg.html')}`;
+    } else {
+      console.log('使用 HTML 格式生成文件...');
+      fileBlob = await PDFGenerator.createTranslatedPDF(
+        currentJob.fileName,
+        translatedContent
+      );
+      translatedFileName = `translated_${currentJob.fileName.replace('.pdf', '.html')}`;
     }
     
     // 完成任務
@@ -150,10 +149,7 @@ const simulateTranslation = async (jobId: string) => {
       progress: 0,
       errorMessage: error instanceof Error ? error.message : '翻譯過程中發生未知錯誤'
     });
-    
-    // 顯示更詳細的錯誤訊息
-    const errorMessage = error instanceof Error ? error.message : '未知錯誤';
-    alert(`處理文件時發生錯誤：${errorMessage}\n\n請檢查：\n1. 是否已創建 svgPdfGenerator.ts 檔案\n2. 瀏覽器控制台是否有其他錯誤訊息`);
+    alert(`處理文件時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}\n\n請檢查瀏覽器控制台獲取更多信息。`);
   }
 };
   const handleDownload = async (job: TranslationJob) => {
